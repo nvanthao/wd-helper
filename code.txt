@@ -1,0 +1,253 @@
+class zcl_wd_helper definition
+  public
+  final
+  create public .
+
+public section.
+
+  class-methods bind
+    importing
+      !ir_context type ref to if_wd_context_node
+      !iv_fna type string optional
+      !iv_sna type string optional
+      !iv_tna type string optional
+      !iv_data type any optional
+      !is_data type any optional
+      !it_data type any table optional .
+  class-methods bind_value_set
+    importing
+      !ir_context type ref to if_wd_context_node
+      !it_value type wdy_key_value_table
+      !iv_fna type string
+      !iv_na type string .
+  class-methods invalidate
+    importing
+      !ir_context type ref to if_wd_context_node
+      !iv_na type string .
+  class-methods read
+    importing
+      !ir_context type ref to if_wd_context_node
+      !iv_fna type string optional
+      !iv_sna type string optional
+      !iv_tna type string optional
+    exporting
+      !ev_data type any
+      !es_data type any
+      !et_data type any table .
+protected section.
+private section.
+
+  class-methods get_node_from_path
+    importing
+      !iv_fna type string
+    exporting
+      !ev_sna type string
+      !ev_fna type string .
+endclass.
+
+
+
+class zcl_wd_helper implementation.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_WD_HELPER=>BIND
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IR_CONTEXT                     TYPE REF TO IF_WD_CONTEXT_NODE
+* | [--->] IV_FNA                         TYPE        STRING(optional)
+* | [--->] IV_SNA                         TYPE        STRING(optional)
+* | [--->] IV_TNA                         TYPE        STRING(optional)
+* | [--->] IV_DATA                        TYPE        ANY(optional)
+* | [--->] IS_DATA                        TYPE        ANY(optional)
+* | [--->] IT_DATA                        TYPE        ANY TABLE(optional)
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+method bind.
+
+  constants lc_sep type c value '.'.
+
+  data lr_context_element type ref to if_wd_context_element.
+  data lr_context_node    type ref to if_wd_context_node.
+
+  data lv_fna type string.
+  data lv_sna type string.
+
+  if iv_fna is not initial.
+    "bind to field
+    "get node > element > attribute
+    call method zcl_wd_helper=>get_node_from_path
+      exporting
+        iv_fna = iv_fna
+      importing
+        ev_sna = lv_sna
+        ev_fna = lv_fna.
+
+    if lv_sna is initial.
+      lr_context_node = ir_context.
+    else.
+      lr_context_node = ir_context->path_get_node( path = lv_sna ).
+    endif.
+
+    check lv_fna is not initial.
+    lr_context_element = lr_context_node->get_element( ).
+    if lr_context_element is not bound.
+      lr_context_element = lr_context_node->get_element( index = 1 ).
+    endif.
+
+    check lr_context_element is bound.
+    lr_context_element->set_attribute( exporting name = lv_fna value = iv_data ).
+
+  elseif iv_sna is not initial.
+    "bind to structure
+    lr_context_node = ir_context->path_get_node( path = iv_sna ).
+    check lr_context_node is bound.
+
+    lr_context_element = lr_context_node->get_element( ).
+    check lr_context_element is bound.
+    lr_context_element->set_static_attributes( exporting static_attributes = is_data ).
+
+  elseif iv_tna is not initial.
+    "bind to table
+    lr_context_node = ir_context->path_get_node( path = iv_tna ).
+    check lr_context_node is bound.
+    lr_context_node->bind_table( exporting new_items = it_data ).
+
+  endif.
+
+endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_WD_HELPER=>BIND_VALUE_SET
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IR_CONTEXT                     TYPE REF TO IF_WD_CONTEXT_NODE
+* | [--->] IT_VALUE                       TYPE        WDY_KEY_VALUE_TABLE
+* | [--->] IV_FNA                         TYPE        STRING
+* | [--->] IV_NA                          TYPE        STRING
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+method bind_value_set.
+
+  data lr_context_node type ref to if_wd_context_node.
+  data lr_node_info    type ref to if_wd_context_node_info.
+
+  lr_context_node = ir_context->path_get_node( path = iv_na ).
+  check lr_context_node is bound.
+  lr_node_info = lr_context_node->get_node_info( ).
+  lr_node_info->set_attribute_value_set( name = iv_fna value_set = it_value ).
+
+endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Private Method ZCL_WD_HELPER=>GET_NODE_FROM_PATH
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_FNA                         TYPE        STRING
+* | [<---] EV_SNA                         TYPE        STRING
+* | [<---] EV_FNA                         TYPE        STRING
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+method get_node_from_path.
+
+  constants lc_sep type c value '.'.
+
+  data lv_fna type string.
+  data lv_sna type string.
+  data lv_tmp type string.
+  data lt_str type standard table of string.
+
+  field-symbols <lv_str> like line of lt_str.
+
+  split iv_fna at lc_sep into table lt_str.
+  loop at lt_str assigning <lv_str>.
+    at last.
+      ev_fna = <lv_str>.
+    endat.
+  endloop.
+
+  check ev_fna is not initial.
+
+  if lines( lt_str ) > 1.
+    lv_tmp = lc_sep && lv_fna.
+    split iv_fna at lv_tmp into ev_sna lv_tmp.
+  endif.
+
+endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_WD_HELPER=>INVALIDATE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IR_CONTEXT                     TYPE REF TO IF_WD_CONTEXT_NODE
+* | [--->] IV_NA                          TYPE        STRING
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+method invalidate.
+
+  data lr_context_node type ref to if_wd_context_node.
+
+  lr_context_node = ir_context->path_get_node( path = iv_na ).
+  check lr_context_node is bound.
+  lr_context_node->invalidate( ).
+
+endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_WD_HELPER=>READ
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IR_CONTEXT                     TYPE REF TO IF_WD_CONTEXT_NODE
+* | [--->] IV_FNA                         TYPE        STRING(optional)
+* | [--->] IV_SNA                         TYPE        STRING(optional)
+* | [--->] IV_TNA                         TYPE        STRING(optional)
+* | [<---] EV_DATA                        TYPE        ANY
+* | [<---] ES_DATA                        TYPE        ANY
+* | [<---] ET_DATA                        TYPE        ANY TABLE
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+method read.
+
+  data lr_context_element type ref to if_wd_context_element.
+  data lr_context_node    type ref to if_wd_context_node.
+
+  data lv_fna type string.
+  data lv_sna type string.
+
+  clear: ev_data, es_data, et_data.
+
+  if iv_fna is not initial.
+    "read from field
+    "get node > element > attribute
+    call method zcl_wd_helper=>get_node_from_path
+      exporting
+        iv_fna = iv_fna
+      importing
+        ev_sna = lv_sna
+        ev_fna = lv_fna.
+
+    if lv_sna is initial.
+      lr_context_node = ir_context.
+    else.
+      lr_context_node = ir_context->path_get_node( path = lv_sna ).
+    endif.
+
+    check lv_fna is not initial.
+    lr_context_element = lr_context_node->get_element( ).
+    if lr_context_element is not bound.
+      lr_context_element = lr_context_node->get_element( index = 1 ).
+    endif.
+
+    check lr_context_element is bound.
+    lr_context_element->get_attribute( exporting name = lv_fna importing value = ev_data ).
+
+  elseif iv_sna is not initial.
+    "read from structure
+    lr_context_element = ir_context->path_get_element( path = iv_sna ).
+    check lr_context_element is bound.
+    lr_context_element->get_static_attributes( importing static_attributes = es_data ).
+
+  elseif iv_tna is not initial.
+    "read from table
+    lr_context_node = ir_context->path_get_node( path = iv_tna ).
+    check lr_context_node is bound.
+    lr_context_node->get_static_attributes_table( importing table = et_data ).
+
+  endif.
+
+endmethod.
+endclass.
